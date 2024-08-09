@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Travel Planning App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 0;
+    }
+    .light {
+      background-color: #ffffff;
+      color: #000000;
+    }
+    .dark {
+      background-color: #333333;
+      color: #ffffff;
+    }
+    .destination-card {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 8px;
+      cursor: pointer;
+      text-align: center;
+      width: 200px;
+    }
+    .destination-container {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .carousel {
+      display: flex;
+      overflow-x: auto;
+      gap: 10px;
+      padding: 10px 0;
+    }
+    .carousel img {
+      max-width: 100%;
+      height: auto;
+      flex: 0 0 auto;
+      width: 300px;
+    }
+    .filters {
+      margin: 16px;
+    }
+    .filters input,
+    .filters select {
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://www.unpkg.com/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://www.unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script type="text/babel">
+    function App() {
+      const [destinations, setDestinations] = React.useState([]);
+      const [filteredDestinations, setFilteredDestinations] = React.useState([]);
+      const [selectedDestination, setSelectedDestination] = React.useState(null);
+      const [theme, setTheme] = React.useState(localStorage.getItem('theme') || 'light');
+      const [searchTerm, setSearchTerm] = React.useState('');
+      const [selectedCountry, setSelectedCountry] = React.useState('');
+      const [minBudget, setMinBudget] = React.useState(0);
+      const [maxBudget, setMaxBudget] = React.useState(5000);
+      const [countries, setCountries] = React.useState([]);
+      const [isAdmin, setIsAdmin] = React.useState(false); // Example flag
+
+      React.useEffect(() => {
+        axios.get('https://evaluation-project--01-default-rtdb.asia-southeast1.firebasedatabase.app/destinations.json')
+          .then(response => {
+            const data = response.data;
+            const destinationsArray = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+            setDestinations(destinationsArray);
+            setFilteredDestinations(destinationsArray);
+            // Extract unique countries
+            const uniqueCountries = [...new Set(destinationsArray.map(d => d.country))];
+            setCountries(uniqueCountries);
+            // Example admin flag from response data (adjust according to your data)
+            setIsAdmin(destinationsArray.some(d => d.adminFlag));
+          })
+          .catch(error => {
+            console.error("Error fetching data:", error);
+          });
+      }, []);
+
+      React.useEffect(() => {
+        const filtered = destinations.filter(d =>
+          d.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          (selectedCountry ? d.country === selectedCountry : true) &&
+          d.averageBudget >= minBudget &&
+          d.averageBudget <= maxBudget
+        );
+        setFilteredDestinations(filtered);
+      }, [searchTerm, selectedCountry, minBudget, maxBudget, destinations]);
+
+      const handleCardClick = (destination) => {
+        setSelectedDestination(destination);
+      };
+
+      const toggleTheme = () => {
+        const newTheme = theme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
+        localStorage.setItem('theme', newTheme);
+      };
+
+      const handleAddOrUpdate = (destination) => {
+        // Handle add/update logic here, could open a modal or redirect
+        alert(destination ? `Update ${destination.name}` : 'Add New Destination');
+      };
+
+      const handleFormSubmit = (event) => {
+        event.preventDefault();
+        // Handle form submission logic here
+      };
+
+      const handleSearch = (event) => {
+        setSearchTerm(event.target.value);
+      };
+
+      const handleCountryChange = (event) => {
+        setSelectedCountry(event.target.value);
+      };
+
+      const handleMinBudgetChange = (event) => {
+        setMinBudget(Number(event.target.value));
+      };
+
+      const handleMaxBudgetChange = (event) => {
+        setMaxBudget(Number(event.target.value));
+      };
+
+      if (selectedDestination) {
+        return (
+          <div className={theme}>
+            <button onClick={() => setSelectedDestination(null)}>Back</button>
+            <h2>{selectedDestination.name}</h2>
+            <img src={selectedDestination.profileImage} alt={selectedDestination.name} />
+            <p>{selectedDestination.country}</p>
+            <p>${selectedDestination.averageBudget}</p>
+            <p>{selectedDestination.description}</p>
+            <div className="carousel">
+              {selectedDestination.additionalImages.map((image, index) => (
+                <img key={index} src={image} alt={`Additional view ${index + 1}`} />
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className={theme}>
+          <button onClick={toggleTheme}>Toggle Theme</button>
+          <div className="filters">
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={handleSearch}
+            />
+            <select value={selectedCountry} onChange={handleCountryChange}>
+              <option value="">All Countries</option>
+              {countries.map((country, index) => (
+                <option key={index} value={country}>{country}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              placeholder="Min Budget"
+              value={minBudget}
+              onChange={handleMinBudgetChange}
+            />
+            <input
+              type="number"
+              placeholder="Max Budget"
+              value={maxBudget}
+              onChange={handleMaxBudgetChange}
+            />
+          </div>
+          {isAdmin && (
+            <button onClick={() => handleAddOrUpdate(null)}>Add New Destination</button>
+          )}
+          <div className="destination-container">
+            {filteredDestinations.map(destination => (
+              <div
+                key={destination.id}
+                className="destination-card"
+                onClick={() => handleCardClick(destination)}
+              >
+                <img src={destination.profileImage} alt={destination.name} />
+                <h3>{destination.name}</h3>
+                <p>{destination.country}</p>
+                <p>${destination.averageBudget}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
